@@ -23,7 +23,7 @@
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.6.0",
     "pg": "^8.23.0",
-    "twilio": "^5.13.1"
+    "twilio": "^6.1.2"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
