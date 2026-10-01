@@ -1,0 +1,279 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root { min-height: 100vh; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Animations ── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+@keyframes blink-urgent {
+  0%, 100% { box-shadow: 0 0 0 2.5px #ef4444, 0 0 8px rgba(239,68,68,0.35); }
+  50%       { box-shadow: 0 0 0 2.5px rgba(239,68,68,0.15); }
+}
+
+@keyframes blink-medium {
+  0%, 100% { box-shadow: 0 0 0 2.5px #f59e0b, 0 0 8px rgba(245,158,11,0.35); }
+  50%       { box-shadow: 0 0 0 2.5px rgba(245,158,11,0.15); }
+}
+
+/* ── Priority avatar rings ── */
+.priority-urgent { animation: blink-urgent 1.2s ease-in-out infinite; }
+.priority-medium { animation: blink-medium 1.8s ease-in-out infinite; }
+.priority-low    { box-shadow: 0 0 0 2.5px #10b981; }
+
+/* ── Utility classes ── */
+.summary-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #10b981;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.summary-card { animation: fadeIn 0.22s ease; }
+.pulse-text   { animation: pulse 1.4s ease-in-out infinite; }
+.slide-up     { animation: slideUp 0.25s ease; }
+
+/* ── Global input focus ring ── */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.12) !important;
+}
+
+/* ── Table row hover ── */
+.leads-row:hover td {
+  background: #f8fafc;
+}
+.orders-row:hover td {
+  background: #FAFAF8;
+}
+
+/* ── Button base reset ── */
+button { font-family: inherit; }
+
+/* ── Icon-only back arrow (lead detail topbar) ──
+   Borderless by design so it reads as a compact arrow rather than a labelled
+   button; the hover tint is the only affordance, so it has to stay. */
+.icon-back:hover {
+  background: #F1EFEA !important; /* theme.lowBg */
+  color: #1A1918 !important; /* theme.ink */
+}
+
+/* ── Responsive modal (showroom order + any full-featured modal) ──
+   Desktop: centered card with padding. Mobile: full-screen, no backdrop
+   inset, so it's usable one-handed on a showroom phone/tablet. */
+@media (max-width: 640px) {
+  .responsive-modal-backdrop { padding: 0 !important; align-items: stretch !important; }
+  .responsive-modal { border-radius: 0 !important; max-width: 100vw !important; max-height: 100vh !important; height: 100vh; width: 100vw; }
+  /* Also collapses the 3-up customer row (phone / name / additional number) —
+     the class is applied to both, since either stacks the same way. */
+  .responsive-row2 { grid-template-columns: 1fr !important; }
+  /* The converted-enquiry customer card puts the additional number beside the
+     avatar; on a phone that field would be squeezed, so the card stacks. */
+  .locked-cust { flex-wrap: wrap; }
+  .locked-cust > :last-child { width: 100% !important; }
+  .responsive-product-grid { grid-template-columns: 1fr !important; }
+  /* Delivery-method pills stay on one row (4 options, one of them the wide
+     "Cash on Delivery"). On a narrow phone that row is wider than the screen,
+     so it scrolls sideways instead of wrapping or squashing the labels. */
+  .method-pills { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+  .method-pills::-webkit-scrollbar { display: none; }
+}
+
+/* Buttons whose label spells out the action on wide screens and shortens on
+   narrow ones (e.g. "New Showroom Order" -> "New"). */
+@media (max-width: 1100px) {
+  .btn-long-label { display: none; }
+}
+
+/* A horizontal strip that still scrolls when its content is too wide, but
+   without drawing a scrollbar across the bottom of it.
+
+   Used by the Pipeline's status tabs (All leads / New / Quotation / ...).
+   That row needs overflow-x so the tabs are reachable on a narrow window, but
+   the resulting bar sat directly under the labels and read as a stray rule
+   through the strip. Hiding the bar costs nothing here: the row is a handful
+   of buttons, and the active tab's underline already shows where you are.
+
+   scrollbar-width covers Firefox; the ::-webkit-scrollbar rule covers
+   Chrome/Edge/Safari, overriding the 5px default set at the top of this file. */
+.scroll-strip { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
+.scroll-strip::-webkit-scrollbar { display: none; }
+
+/* ── Lead detail: scrolling detail left, pinned items panel right ──
+   The "Interested in" panel occupies the full height of the right column and
+   never scrolls, so the enquiry stays visible while the left column scrolls
+   through notes, location and the follow-up schedule.
+   Under ~1000px there is no room for a 290px column beside the detail, so the
+   two stack and the page scrolls as one — items first, since that is the part
+   staff need while tapping products. */
+@media (max-width: 1000px) {
+  .lead-detail-split { flex-direction: column-reverse !important; overflow-y: auto !important; }
+  .lead-detail-split > div { overflow-y: visible !important; }
+  .lead-detail-split > div:last-of-type { width: auto !important; }
+  .lead-detail-split aside { height: auto !important; border-left: none !important; border-bottom: 1px solid #E8E6E1 !important; }
+  .lead-detail-split aside > div { overflow-y: visible !important; }
+}
+
+/* ── Confirm Order modal: form + cart ──
+   Desktop is two columns (form scrolls, cart stays fixed beside it). There
+   isn't room for a 320px sidebar under ~900px, so the columns stack and the
+   whole thing scrolls as one — the cart sits first so the running total is
+   what staff see when the modal opens. */
+@media (max-width: 900px) {
+  .confirm-order-split { flex-direction: column-reverse !important; overflow-y: auto !important; }
+  .confirm-order-split > aside {
+    width: auto !important;
+    border-left: none !important;
+    border-bottom: 1px solid #E8E6E1 !important;
+    margin-top: 0 !important;
+  }
+  /* Both columns give up their own scrolling to the shared parent */
+  .confirm-order-split > div { overflow-y: visible !important; }
+  /* The totals block is bottom-pinned via margin-top:auto on desktop; when
+     stacked it should just follow the promo field normally. */
+  .confirm-order-split > aside > .cart-totals { margin-top: 0 !important; }
+  /* The showroom cart's item list scrolls inside a fixed-height panel on
+     desktop. Stacked, it has no fixed height to scroll within, so let it
+     grow and leave scrolling to the shared parent. */
+  .confirm-order-split > aside > .cart-list {
+    overflow-y: visible !important;
+    max-height: none !important;
+    flex: none !important;
+  }
+}
+
+/* ── Pipeline table hover states (reference design) ──────────────────────────
+   Inline styles cannot express :hover, so the row tint and the action-icon
+   hover colours live here. Scoped to .leads-table so no other table picks
+   them up. The icons are neutral at rest and only take colour on hover,
+   which is what keeps a dense row of four buttons from looking noisy. */
+.leads-table tbody tr:hover {
+  background: #FCFCFC;
+}
+.leads-table .act-ic:hover {
+  color: var(--accent-ink, #0F766E);
+  border-color: #B9E2DB;
+  background: #E6F5F2;
+}
+.leads-table .act-ic.danger:hover {
+  color: #B0432E;
+  border-color: #EBC7BF;
+  background: #FAECE8;
+}
+/* The expand chevron is the row's primary affordance — give it the same
+   tinted treatment rather than leaving it the only cold control in the row. */
+.leads-table .expand-btn:hover {
+  color: var(--accent-ink, #0F766E);
+  background: #E6F5F2;
+}
+
+/* ── Pipeline toolbar controls (reference design) ────────────────────────────
+   Hover/disabled states for the topbar and toolbar buttons. The disabled ones
+   are the placeholders with no backend yet (Share Lead, Import, Add Lead) —
+   they are dimmed and show a not-allowed cursor so it is obvious at a glance
+   that they are not live, rather than looking clickable and doing nothing. */
+.pipeline-btn:not(:disabled):hover { background: #FAFAFA; }
+.pipeline-btn:disabled,
+.pipeline-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.pipeline-btn-primary:not(:disabled):hover { filter: brightness(0.94); }
+.pipeline-tool:hover { color: #716C63; }
+
+/* ── Sidebar nav hover (reference design) ───────────────────────────────────
+   Inline styles can't express :hover. The active row is excluded so its tinted
+   accent background isn't overwritten by the neutral hover grey. */
+.sidebar-nav-item:hover { background: #F6F6F6; }
+.sidebar-nav-item.active:hover { background: var(--accent-soft, #E6F5F2); }
+
+/* ── App zoom on large displays ─────────────────────────────────────────────
+   Reported as the UI looking too small / "zoomed out" on a big monitor: the
+   type sizes are hardcoded in px in 633 places across the JSX, so on a 1920px
+   screen everything stayed laptop-sized while the layout stretched around it.
+
+   Scaling with `zoom` rather than editing those 633 values: zoom scales text,
+   padding, borders, icons and control heights together, so the proportions
+   the design was drawn at are preserved exactly. Editing font sizes alone
+   would have grown the text inside unchanged 25px-tall buttons and 6px
+   paddings, which is a different (worse) layout, not a bigger one.
+
+   Deliberately NOT a max-width cap: the content still uses the full width of
+   the window, with no left/right gutters.
+
+   THE HEIGHT DIVISION IS LOAD-BEARING. The shell is height:100vh, and zoom
+   scales that too — at 1.15 a 805px-tall window rendered a 926px shell, so
+   the sidebar and the table's scroll container overflowed and the bottom of
+   the page was cut off. Dividing by the same factor makes the shell render at
+   exactly the window height (measured: 805px in an 805px window, no
+   overflow). The divisor is written literally rather than as a var() because
+   calc() cannot divide by a custom property.
+
+   Below 1600px this is inert: a laptop already shows these sizes as designed,
+   and zooming there would fit fewer rows on an already-shorter screen. */
+@media (min-width: 1600px) {
+  .app-shell {
+    zoom: 1.15;
+    --app-zoom: 1.15; /* read by lib/viewport.js vh() for popups inside the shell */
+    height: calc(100vh / 1.15) !important;
+  }
+}
+
+@media (min-width: 2200px) {
+  /* A 4K/ultrawide panel is usually further away and has the room, so it
+     takes a second step rather than staying at the 1600px setting. */
+  .app-shell {
+    zoom: 1.3;
+    --app-zoom: 1.3;
+    height: calc(100vh / 1.3) !important;
+  }
+}
+
+/* Search boxes are type="search" so password managers leave them alone (see
+   PageHeader.jsx). Browsers then add their own clear (x) and rounded styling;
+   our search boxes already have a clear button and their own look. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="search"] {
+  -webkit-appearance: none;
+  appearance: none;
+}

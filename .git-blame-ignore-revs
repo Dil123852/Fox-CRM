@@ -1,0 +1,5 @@
+# Bulk reformatting commits — skipped by `git blame`.
+# Configure with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Format the backend with Prettier at printWidth 140
+e63a4774b8053d65d210edeeaaaae66ab8b1d049

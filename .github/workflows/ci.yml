@@ -1,0 +1,227 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ====================================================
+  # JOB 1: Lint & Format Check
+  # ====================================================
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            whatsapp-backend/package-lock.json
+            whatsapp-dashboard/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./whatsapp-backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: ./whatsapp-dashboard
+        run: npm ci
+
+      - name: Run backend lint
+        working-directory: ./whatsapp-backend
+        # Blocking: the suite is green (110/110) and lint is clean, so this
+        # gate starts from a passing baseline. A gate introduced onto an
+        # already-red check just teaches everyone to merge past it.
+        run: npm run lint --if-present
+
+      - name: Run frontend lint
+        working-directory: ./whatsapp-dashboard
+        # Blocking: the suite is green (110/110) and lint is clean, so this
+        # gate starts from a passing baseline. A gate introduced onto an
+        # already-red check just teaches everyone to merge past it.
+        run: npm run lint --if-present
+
+  # ====================================================
+  # JOB 2: Backend Tests
+  # ====================================================
+  backend-tests:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: whatsapp-backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./whatsapp-backend
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: ./whatsapp-backend
+        run: npm test
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: backend-coverage
+          path: whatsapp-backend/coverage/
+          retention-days: 30
+
+  # ====================================================
+  # JOB 3: Frontend Tests
+  # ====================================================
+  frontend-tests:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: whatsapp-dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./whatsapp-dashboard
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: ./whatsapp-dashboard
+        run: npm test
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: frontend-coverage
+          path: whatsapp-dashboard/coverage/
+          retention-days: 30
+
+  # ====================================================
+  # JOB 4: Build Frontend
+  # ====================================================
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: whatsapp-dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./whatsapp-dashboard
+        run: npm ci
+
+      - name: Build production bundle
+        working-directory: ./whatsapp-dashboard
+        run: npm run build
+        env:
+          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-build
+          path: whatsapp-dashboard/dist/
+          retention-days: 7
+
+  # ====================================================
+  # JOB 5: Security Audit
+  # ====================================================
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Audit backend dependencies
+        working-directory: ./whatsapp-backend
+        # Blocking: the backend currently reports 0 vulnerabilities, so this
+        # starts green. A new high in a backend dependency now stops the merge.
+        run: npm audit --audit-level=high
+
+      - name: Audit frontend dependencies
+        working-directory: ./whatsapp-dashboard
+        # xlsx is the ONE expected high here and has no npm fix available:
+        # SheetJS stopped publishing to the npm registry, so 0.18.5 is the
+        # newest version there while the advisories are fixed in 0.20.2+ (their
+        # CDN only). Both — prototype pollution (GHSA-4r6h-8v6p-xvw6) and ReDoS
+        # (GHSA-5pgg-2g8v-p4x9) — require PARSING an attacker-supplied
+        # spreadsheet, and this app only ever WRITES them. That claim is not
+        # taken on trust: the guard step below fails the build if an XLSX.read
+        # call ever appears, which is what would make the advisory reachable.
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Assert the xlsx advisory stays unreachable
+        working-directory: ./whatsapp-dashboard
+        # Turns the written-only assumption into something enforced. If anyone
+        # introduces spreadsheet PARSING, this fails loudly instead of the
+        # accepted advisory quietly becoming exploitable.
+        run: |
+          if grep -rn -E "XLSX[.](read|readFile)" src/; then
+            echo "::error::xlsx PARSING introduced — GHSA-4r6h-8v6p-xvw6 / GHSA-5pgg-2g8v-p4x9 become reachable. Upgrade xlsx to >=0.20.2 from the SheetJS CDN before merging."
+            exit 1
+          fi
+          echo "OK: no XLSX.read/readFile in src/ — xlsx is write-only, both advisories unreachable."
+
+      - name: Summarise accepted audit findings
+        if: always()
+        run: |
+          echo "Backend audit is BLOCKING. Frontend audit stays advisory for the xlsx exception below."
+          echo "Accepted: xlsx@0.18.5 — no npm fix exists; advisories require spreadsheet parsing, enforced absent by the guard step above."
+
+
+  # ====================================================
+  # JOB 6: Status Check
+  # ====================================================
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, build-frontend, security-audit]
+    if: always()
+    steps:
+      - name: Check job statuses
+        run: |
+          # security-audit was listed in `needs` but its result was never
+          # inspected here, so a failing audit still passed CI. Checked now.
+          if [[ "${{ needs.backend-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.frontend-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.build-frontend.result }}" != "success" ]] || \
+             [[ "${{ needs.security-audit.result }}" != "success" ]]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          echo "All checks passed!"

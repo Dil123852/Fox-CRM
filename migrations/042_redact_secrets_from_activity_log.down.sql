@@ -1,0 +1,4 @@
+-- Rollback 042 restores the UNREDACTED trigger, which will record password
+-- hashes into activity_log again. Redacted rows cannot be recovered, and that
+-- is intentional — they held live credentials. Re-apply migration 035's
+-- function body only if you genuinely want that behaviour back.

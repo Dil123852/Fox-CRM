@@ -1,0 +1,57 @@
+{
+  "name": "whatsapp-backend",
+  "version": "1.0.0",
+  "description": "WhatsApp Business API webhook server with Claude AI integration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "seed:admin": "node scripts/seed-admin.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "lint": "eslint . --ext .js --ignore-pattern node_modules --ignore-pattern coverage",
+    "lint:fix": "eslint . --ext .js --fix --ignore-pattern node_modules",
+    "format": "prettier --write \"**/*.{js,json,md}\" --ignore-path .gitignore"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^18.0.3",
+    "express": "^4.22.3",
+    "express-rate-limit": "^8.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "node-cron": "^4.6.0",
+    "pg": "^8.23.0",
+    "twilio": "^5.13.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "eslint": "^8.56.0",
+    "jest": "^30.5.1",
+    "nodemon": "^3.0.2",
+    "prettier": "^3.9.8",
+    "supertest": "^6.3.3"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "index.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
+    "setupFiles": [
+      "<rootDir>/tests/setup.js"
+    ]
+  },
+  "overrides": {
+    "qs": "^6.15.3"
+  }
+}

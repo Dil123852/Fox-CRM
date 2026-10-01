@@ -1,0 +1,43 @@
+node_modules
+npm-debug.log*
+
+# Secrets — never bake into the image; env vars are injected at runtime
+.env
+.env.local
+.env.*.local
+
+# VCS / CI
+.git
+.gitignore
+.github
+
+# Docs (not needed at runtime)
+README.md
+CLAUDE.md
+PROJECT_PLAN.md
+CICD.md
+TECHNICAL_STACK.md
+
+# Lint / format configs
+.eslintrc*
+.prettierrc*
+.prettierignore
+
+# Tests
+coverage
+tests
+*.test.js
+
+# Runtime logs
+*.log
+logs/
+backend.log
+
+# Docker itself
+Dockerfile
+.dockerignore
+
+# OS / editor
+.DS_Store
+.vscode
+.idea

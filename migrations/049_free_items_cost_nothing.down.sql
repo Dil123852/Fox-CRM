@@ -1,0 +1,11 @@
+-- 049 down: intentionally a no-op.
+--
+-- 049 raised the stored total of a few unpaid orders that had been undercharged
+-- by the value of their free pillows. Reversing it would reintroduce that
+-- undercharge, and it cannot be done safely by formula: an order placed after
+-- 049 has exactly the same shape (total = paid lines - discounts), so any
+-- "subtract the free value again" rule would also corrupt those.
+--
+-- If the old figures are genuinely needed, restore them from the pg_dump taken
+-- before 049 was applied (see migrations/README.md).
+SELECT 1;

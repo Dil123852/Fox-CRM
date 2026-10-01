@@ -1,0 +1,74 @@
+version: 2
+
+# Weekly dependency updates for both apps.
+#
+# Deliberately throttled. An unthrottled Dependabot on two Node projects opens
+# a dozen PRs a week, which gets muted — and a muted security tool is worse
+# than none, because it looks like coverage. Patch and minor updates are
+# grouped into ONE pull request per app so the weekly cost is two reviews.
+#
+# MAJORS ARE IGNORED for the tooling families below, and that is the important
+# part. The first run opened four PRs that could not pass CI no matter what,
+# because each proposed HALF of an upgrade that has to move as a set:
+#   @vitest/coverage-v8 5 needs vitest 5   (we run vitest 3)
+#   @vitejs/plugin-react 6 needs vite 8    (we run vite 7)
+# npm ci fails on the peer conflict before a single test runs. A bot that
+# reliably opens unmergeable PRs trains you to ignore it, so those majors are
+# now proposed by the bot only where it can offer a coherent upgrade.
+#
+# This does NOT mean majors never happen — it means they are done deliberately,
+# as a family, by a human who can also do the migration work they require.
+updates:
+  - package-ecosystem: npm
+    directory: /whatsapp-backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      backend-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # eslint 9 replaced .eslintrc.json with flat config and 10 dropped the
+      # legacy format entirely. Upgrading means rewriting the config and
+      # re-checking every rule, which is a task, not a version bump.
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      # express 5 changes routing, error handling and req/res behaviour across
+      # 87 routes, and renames app._router — which the route-inventory test
+      # reads. Worth doing one day, on purpose, with the suite watched.
+      - dependency-name: express
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: npm
+    directory: /whatsapp-dashboard
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      frontend-minor-and-patch:
+        update-types: [minor, patch]
+      # vite, vitest and their plugins have hard peer requirements on each
+      # other. Grouped so a major is proposed as ONE coherent PR that can
+      # actually install, instead of several that each fail npm ci.
+      frontend-build-toolchain:
+        patterns:
+          - vite
+          - vitest
+          - '@vitejs/*'
+          - '@vitest/*'
+        update-types: [major]
+    ignore:
+      # xlsx has no fix on the npm registry — SheetJS publishes 0.20.2+ only via
+      # their own CDN, so Dependabot cannot resolve an upgrade and would reopen
+      # the same unactionable PR every week. The advisory is handled instead by
+      # the "Assert the xlsx advisory stays unreachable" step in ci.yml, which
+      # fails the build if spreadsheet PARSING is ever introduced.
+      - dependency-name: xlsx
+
+  # Keeps the GitHub Actions themselves current — checkout, setup-node and the
+  # upload-artifact actions are as much a supply chain as the npm packages.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2

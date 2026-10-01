@@ -1,0 +1,91 @@
+name: Deploy Pipeline
+
+# Fires only once the CI Pipeline workflow run for this exact commit has
+# genuinely concluded — not on push directly. Polling for a same-push
+# check via wait-on-check-action races CI's own job creation (this
+# workflow can start, and look for the "CI Success" check, before that
+# job has even been scheduled yet on CI's side), which is what caused the
+# very first deploy run to fail before ever reaching the VM.
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  # Deploy: SSH into the VM, pull the new commit, rebuild only the containers
+  # whose source changed, restart them. Deliberately does NOT run database
+  # migrations automatically — those stay a manual, backed-up-first step
+  # (see CLAUDE.md conventions) so a bad migration can't run unattended.
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /root/crm-automation
+
+            echo "--- Pulling latest main ---"
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "--- Rebuilding backend ---"
+            docker compose build backend
+
+            echo "--- Rebuilding frontend ---"
+            docker compose build frontend
+
+            echo "--- Restarting services ---"
+            docker compose up -d backend frontend
+
+            # sunflower-nginx (a separate compose stack) is the shared reverse
+            # proxy that actually serves crm.nidikumba.shop. It must be
+            # attached to this network to resolve whatsapp-backend/-frontend
+            # by name. A `docker compose down` on this stack recreates the
+            # network with a new ID and drops that attachment silently — this
+            # makes every deploy self-healing against that instead of relying
+            # on someone remembering to redo it by hand.
+            echo "--- Ensuring sunflower-nginx is attached to this network ---"
+            docker network connect crm-automation_app-network sunflower-nginx 2>/dev/null || true
+
+            # `up -d` above RECREATES the backend/frontend containers, which
+            # gives them new IPs on that network. nginx resolves an upstream
+            # hostname once, when it (re)loads its config, so without this it
+            # keeps sending crm.nidikumba.shop to the old IPs and every request
+            # is a 502 — seen on 2026-09-29 after a restart and again on the
+            # next deploy. A reload re-resolves the names without dropping the
+            # other site's connections; `nginx -t` first, so a broken config is
+            # reported instead of taking the proxy down.
+            echo "--- Reloading sunflower-nginx so it picks up the new container IPs ---"
+            docker exec sunflower-nginx nginx -t
+            docker exec sunflower-nginx nginx -s reload
+
+            echo "--- Pruning old images ---"
+            docker image prune -f
+
+      # Retries for up to ~90s instead of one try after a fixed 10s: the
+      # backend container takes a variable time to start, and a single early
+      # probe failed deploys that were in fact fine. Prints the HTTP status on
+      # every try, so a 502 (proxy) reads differently from a 500 (backend).
+      - name: Health check
+        run: |
+          for i in $(seq 1 18); do
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' https://crm.nidikumba.shop/health || echo 000)
+            body=$(cat /tmp/health.json 2>/dev/null || true)
+            echo "Try $i: HTTP $code $body"
+            if [[ "$code" == "200" && "$body" == *'"status":"ok"'* ]]; then
+              echo "Backend healthy."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Health check never returned the expected backend JSON — the deploy may not be live."
+          echo "HTTP 502 = sunflower-nginx cannot reach the containers (reload it); 5xx from the app = check backend logs."
+          exit 1
