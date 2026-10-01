@@ -1,0 +1,23 @@
+# Normalise line endings. Without this, core.autocrlf=true on Windows plus
+# `endOfLine: lf` in .prettierrc means Git and Prettier disagree about every
+# line, and any formatting run produces whole-file diffs that hide the real
+# change. Text files are stored LF in the repo and checked out LF.
+* text=auto eol=lf
+
+# Binary assets — never touch these.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.ttf  binary
+*.woff binary
+*.woff2 binary
+*.pdf  binary
+*.apk  binary
+
+# Generated lockfiles: keep them out of diffs and out of language stats.
+package-lock.json linguist-generated=true
+
+# Database dumps are generated snapshots, not hand-edited source.
+backups/*.sql linguist-generated=true

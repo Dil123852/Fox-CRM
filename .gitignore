@@ -1,0 +1,43 @@
+# Environment variables (never commit secrets)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+logs/
+backend.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backups / dumps
+backups/
+*.sql.gz
+*.dump
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build output
+dist/
+build/
+
+# TLS / certs (if ever generated locally, e.g. via certbot testing)
+*.pem
+*.key
+*.crt
+
+# Generated test-coverage output (was previously tracked by mistake)
+coverage/

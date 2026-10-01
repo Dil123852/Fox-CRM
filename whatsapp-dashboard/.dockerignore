@@ -1,0 +1,33 @@
+node_modules
+npm-debug.log*
+
+# Secrets — the frontend build only needs VITE_* build args, never the .env file
+.env
+.env.local
+.env.*.local
+
+# VCS / CI
+.git
+.gitignore
+.github
+
+# Docs
+README.md
+
+# Lint / format configs
+.eslintrc*
+.prettierrc*
+.prettierignore
+
+# Existing build output (rebuilt fresh inside the image)
+dist
+dist-ssr
+
+# OS / editor
+.DS_Store
+.vscode
+.idea
+
+# Docker itself
+Dockerfile
+.dockerignore

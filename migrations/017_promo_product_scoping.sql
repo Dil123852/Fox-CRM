@@ -1,0 +1,21 @@
+-- Product-scoped promo codes: a code can now be restricted to a set of
+-- products, so its discount applies only to matching line items in the
+-- cart, not the whole order. NULL/empty array = applies to everything
+-- (today's behavior), matching how max_redemptions IS NULL already means
+-- "unlimited" elsewhere on this table — no separate "unscoped" flag needed.
+--
+-- Deliberately NOT enforced inside redeem_promo_code/validate_promo_code:
+-- those functions take a single total number, with no concept of cart line
+-- items. Matching eligible items and computing their subtotal happens in
+-- JS (whatsapp-backend/index.js), the same way order-item-to-product
+-- matching already happens elsewhere in this codebase (by name, since
+-- order items have no product_id — see trg_order_stock_reservation). The
+-- computed eligible subtotal is then passed into redeem_promo_code exactly
+-- as p_order_total always was — the discount math and race-safe locking
+-- are unchanged, they just now receive a scoped number instead of the
+-- whole cart total.
+--
+-- Apply with:
+--   docker exec -i crm-postgres psql -U crm -d crm < migrations/017_promo_product_scoping.sql
+
+ALTER TABLE promo_codes ADD COLUMN IF NOT EXISTS eligible_product_names TEXT[];
